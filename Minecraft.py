@@ -10,9 +10,19 @@ print("hei maailma")
 
 
 
+
 # Testi Khaled
 
 print("Moi kaikki")
 
 print("Heippa")
 
+
+
+# Testi Khaled
+
+print("Moi kaikki")
+
+print("Heippa")
+
+#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
