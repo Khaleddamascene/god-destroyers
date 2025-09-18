@@ -8,3 +8,11 @@
 #moi
 
 print("hei maailma")
+
+
+
+# Testi Khaled
+
+print("Moi kaikki")
+
+
