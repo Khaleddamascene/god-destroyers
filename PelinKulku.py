@@ -1,6 +1,7 @@
 import Minecraft
 
 print(Minecraft.kala)
+print(Minecraft.kissa)
 
 game_name = "Minecraft"
 
