@@ -28,3 +28,12 @@ country = input()
 
 print("What difficulty? (Easy/Medium/Hard)")
 difficulty = input()
+
+if difficulty == "Easy":
+    start_bensa_maara = 2000
+elif difficulty == "Medium":
+    start_bensa_maara = 1000
+elif difficulty == "Hard":
+    start_bensa_maara = 500
+else:
+    print("Väärä komento")
