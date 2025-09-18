@@ -9,7 +9,7 @@
 print("hei maailma")
 
 kala = "kala"
-
+kissa = "kissa"
 
 # Testi Khaled
 
