@@ -8,7 +8,7 @@
 
 print("hei maailma")
 
-
+kala = "kala"
 
 
 # Testi Khaled

@@ -1,3 +1,6 @@
+import Minecraft
+
+print(Minecraft.kala)
 
 game_name = "Minecraft"
 
@@ -5,6 +8,7 @@ print(game_name)
 print("Start / Quit")
 inp = ""
 while True:
+    inp = input()
     if inp == "Start":
         break
     elif inp == "Quit":
@@ -23,4 +27,3 @@ country = input()
 
 print("What difficulty? (Easy/Medium/Hard)")
 difficulty = input()
-
