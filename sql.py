@@ -1,7 +1,7 @@
 import mysql.connector
 from geopy.distance import geodesic # etäisyys laskemista varteen
 import PelinKulku
-import Minecraft
+
 
 yhteys = mysql.connector.connect(
          host='127.0.0.1',
