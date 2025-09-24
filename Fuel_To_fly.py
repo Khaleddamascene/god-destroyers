@@ -1,0 +1,2 @@
+# Testi
+print("Tervetolua")
