@@ -3,15 +3,27 @@ from geopy.distance import geodesic # etäisyys laskemista varteen
 import PelinKulku
 import Minecraft
 
-yhteys = mysql.connector.connect(
-         host='127.0.0.1',
-         port= 3306,
-         database='flight_game',
-         user='',
-         password='',
-         autocommit=True
-         )
+# yhteys = mysql.connector.connect(
+#          host='127.0.0.1',
+#          port= 3306,
+#          database='flight_game',
+#          user='',
+#          password='',
+#          autocommit=True
+#          )
 
+import mysql.connector
+
+def get_connection():
+    yhteys = mysql.connector.connect(
+        host='127.0.0.1',
+        port=3306,
+        database='fuel_to_fly',
+        user='Dornaraj',
+        password='123',
+        autocommit=True
+    )
+    return yhteys
 
 
 def hae_maa(koodi):
