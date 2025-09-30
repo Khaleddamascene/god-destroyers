@@ -1,4 +1,4 @@
-bensa = 0
+bensa = 1000
 # Lista kentistä, missä on käynyt (että tietää olla menemättä uudelleen/sieltä ei enää saa bensaa yms):
 kaydytKentat = {"EFYL", "Ylivieska Airfield"} # ident, name (Tämä on vain esimerkki miten tämän voi tehdä)
 
