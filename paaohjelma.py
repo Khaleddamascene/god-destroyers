@@ -1,6 +1,4 @@
-
-
-# --- DATABASE ---**************************
+# --- DATABASE ---
 import mysql.connector
 
 def get_connection():
@@ -13,11 +11,12 @@ def get_connection():
         autocommit=True
     )
     return yhteys
-# ***********************************************
+
 
 import random
 from geopy.distance import geodesic
 import sqlite3
+
 
 bensa = 0
 # Lista kentistä, missä on käynyt (että tietää olla menemättä uudelleen/sieltä ei enää saa bensaa yms):
