@@ -1,26 +1,31 @@
 # --- DATABASE ---
+import random
+
 import mysql.connector
+from geopy.distance import geodesic
+
+#import sqlite3
 
 def get_connection():
     yhteys = mysql.connector.connect(
         host='127.0.0.1',
         port=3306,
         database='fuel_to_fly',
-        user='Dornaraj',
-        password='123',
+        user='elmo',
+        password='kikkeli123',
         autocommit=True
     )
     return yhteys
 
 
-import random
-from geopy.distance import geodesic
-import sqlite3
 
-
+nimi = "No Name Set"
 bensa = 0
-# Lista kentistä, missä on käynyt (että tietää olla menemättä uudelleen/sieltä ei enää saa bensaa yms):
 
+ika = 0
+pankkiTunnus = ""
+
+# Lista kentistä, missä on käynyt (että tietää olla menemättä uudelleen/sieltä ei enää saa bensaa yms):
 kaydytKentat = {"EFYL", "Ylivieska Airfield"} 
 maa = "Ei maata" 
 maanosa = "Ei maanosaa" 
@@ -73,6 +78,10 @@ def Puhe():
 
 # --- VARSINAINEN PELI ---
 def pelaa_peli():
+    ika = int(input)
+    if ika < 18:
+        print("Liian nuori, häivy!")
+        return
     yhteys = get_connection()
     cursor = yhteys.cursor()
 
@@ -106,11 +115,11 @@ def pelaa_peli():
     valittu = kentta_etaisyydet[valinta-1]
 
     if valittu == kentta_etaisyydet[0]:
-        print(f"Turvallinen valinta! Saat lisää polttoainetta (+200).")
+        print("Turvallinen valinta! Saat lisää polttoainetta (+200).")
     elif valittu == kentta_etaisyydet[1]:
-        print(f"Matka onnistui, mutta kulutit paljon polttoainetta.")
+        print("Matka onnistui, mutta kulutit paljon polttoainetta.")
     else:
-        print(f"Liian kaukana! Polttoaine ei riitä, peli loppuu.")
+        print("Liian kaukana! Polttoaine ei riitä, peli loppuu.")
 
     cursor.close()
     yhteys.close()
@@ -118,8 +127,6 @@ def pelaa_peli():
 # --- MAIN ---
 if __name__ == "__main__":
     print("Fuel to Fly\n")
-    input("Press ENTER to start!\n")
     print("Kirjoita 'ohje', niin saat pelin ohjeet.\n")
-    Puhe()
-    print("Peli alkaa!\n")
+    input("Press ENTER to start!\n")
     pelaa_peli()
