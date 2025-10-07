@@ -1,24 +1,26 @@
 # --- DATABASE ---
-import mysql.connector
 import random
+
+import mysql.connector
 from geopy.distance import geodesic
+
 
 def get_connection():
     yhteys = mysql.connector.connect(
         host='127.0.0.1',
-        port=3307,
+        port=3306,
         database='fuel_to_fly',
-        user='khaled',
-        password='1234',
+        user='elmo',
+        password='kikkeli123',
         autocommit=True
     )
     return yhteys
 
+yhteys = get_connection()
+cursor = yhteys.cursor()
+
 #####  """Khaled"""
 def alku():
-    yhteys = get_connection()
-    cursor = yhteys.cursor()
-
     # 1. Kysy pelaajan nimi (pakollinen)
     while True:
         nimi = input("Syötä pelaajan nimi: ").strip()
@@ -37,16 +39,13 @@ def alku():
     pelaaja_ident, pelaaja_nimi, lat, lon = aloitus
 
     # 3. Polttoaine alussa
-    bensa = 1000
+    bensa = 10000
 
     # Tulostetaan tiedot
     print("\n--- PELIN ALKU ---")
     print(f"Tervetuloa peliin {nimi}!")
     print(f"Aloitat kentältä: {pelaaja_nimi} ({pelaaja_ident})")
     print(f"Polttoainetta käytössäsi: {bensa} yksikköä\n")
-
-    cursor.close()
-    yhteys.close()
 
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
@@ -57,6 +56,7 @@ def alku():
 bensa = 0
 maa = "Ei maata"
 maanosa = "Ei maanosaa"
+peliKaynnissa = True
 
 komennot = [
     (["apua", "h", "a", "komennot"], "apua", "Nämä komennot"),
@@ -109,9 +109,6 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
     global bensa
     bensa = aloitus_bensa
 
-    yhteys = get_connection()
-    cursor = yhteys.cursor()
-
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
     print(f"Pelaajan kenttä: {pelaaja_kentta_nimi} ({pelaaja_ident})\n")
 
@@ -140,19 +137,31 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
     valittu = kentta_etaisyydet[valinta-1]
 
     if valittu == kentta_etaisyydet[0]:
-        print(f"Turvallinen valinta! Saat lisää polttoainetta (+200).")
-        bensa += 200
+        print("Turvallinen valinta! Saat lisää polttoainetta (+200).")
     elif valittu == kentta_etaisyydet[1]:
-        print(f"Matka onnistui, mutta kulutit paljon polttoainetta.")
-        bensa -= int(valittu[2])  # vähennetään matkan verran
+        print("Ihan OK valinta. Kulutit paljon polttoainetta.")
     else:
-        print(f"Liian kaukana! Polttoaine ei riitä, peli loppuu.")
-        bensa = 0
+        print("Valitsit pitkän matkan.")
+        
+    kulutus = int(valittu[2])/2
+    bensa -= kulutus
 
+    if bensa <= 0:
+        print("Bensa loppui kesken!")
+        print("Peli päättyi. Kiitos pelaamisesta!")
+        global peliKaynnissa
+        peliKaynnissa = False
+    else:
+        print("Selvisit matkan!")
+        print("Kulutit: ", kulutus, " bensaa.")
+        if valittu == kentta_etaisyydet[0]:
+            bensa += int(valittu[2])/2*1.2
+        elif valittu == kentta_etaisyydet[1]:
+            bensa += int(valittu[2])/2*0.9
+        else:
+            bensa += int(valittu[2])/2*0.6
+        
     print(f"\nTilanne: Polttoainetta jäljellä {bensa} yksikköä.")
-
-    cursor.close()
-    yhteys.close()
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -164,4 +173,11 @@ if __name__ == "__main__":
 
     # Käynnistetään alku ja peli
     nimi, kentta, aloitus_bensa = alku()
+
+# Peli käynnissä
+while peliKaynnissa: 
     pelaa_peli(nimi, kentta, aloitus_bensa)
+
+# Lopuksi nämä voi sulkea (ei tarvitse koko ajan avata ja sulkea)
+cursor.close()
+yhteys.close()
