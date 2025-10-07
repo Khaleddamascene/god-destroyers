@@ -6,10 +6,10 @@ from geopy.distance import geodesic
 def get_connection():
     yhteys = mysql.connector.connect(
         host='127.0.0.1',
-        port=3307,
+        port=3306,
         database='fuel_to_fly',
-        user='khaled',
-        password='1234',
+        user='Dornaraj',
+        password='123',
         autocommit=True
     )
     return yhteys
@@ -164,4 +164,10 @@ if __name__ == "__main__":
 
     # Käynnistetään alku ja peli
     nimi, kentta, aloitus_bensa = alku()
+
+#* pelin loppu
+while True: 
     pelaa_peli(nimi, kentta, aloitus_bensa)
+    if bensa <= 0:
+        print("Peli päättyi. Kiitos pelaamisesta!")
+        break
