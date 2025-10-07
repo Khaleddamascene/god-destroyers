@@ -1,6 +1,5 @@
 # --- DATABASE ---
 import random
-
 import mysql.connector
 from geopy.distance import geodesic
 
@@ -10,8 +9,8 @@ def get_connection():
         host='127.0.0.1',
         port=3306,
         database='fuel_to_fly',
-        user='elmo',
-        password='kikkeli123',
+        user='aaro',
+        password='2005',
         autocommit=True
     )
     return yhteys
@@ -45,7 +44,7 @@ def alku():
     print("\n--- PELIN ALKU ---")
     print(f"Tervetuloa peliin {nimi}!")
     print(f"Aloitat kentältä: {pelaaja_nimi} ({pelaaja_ident})")
-    print(f"Polttoainetta käytössäsi: {bensa} yksikköä\n")
+    print(f"Polttoainetta käytössäsi: {bensa} litraa\n")
 
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
@@ -73,14 +72,11 @@ def Tilanne():
 
 def Ohjeet():
     print("Ohjeet:")
-    print("Sinulle annetaan vaihtoehtoja eri lentokenttiin.")
-    print("Sinun täytyy valita kenttä, johon sinulla riittää bensaa.")
-    print("Jos kenttä on liian kaukana niin häviät.")
-    print("Oikeasta vastauksesta matkustat sille kentälle.")
-    print("Kentällä saat lisää bensaa ja uuden valinnan.")
-    print("Yritä päästä mahdollisimman pitkälle")
+    print("Sinulle annetaan kolme vaihtoehtoista lentokenttää.")
+    print("Kaikki kentät kuluttavat bensaa 1 litra / km.")
+    print("Lähin kenttä → turvallinen valinta, saat +3000 polttoainetta.")
+    print("Jos polttoaine loppuu, peli päättyy.")
     print("Kirjoita 'apua', niin saat apua.")
-    print("Onnea!")
     input("Jep!")
 
 def HaeKomento(komento):
@@ -106,11 +102,12 @@ def Puhe():
 
 # --- VARSINAINEN PELI ---
 def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
-    global bensa
+    global bensa, peliKaynnissa
     bensa = aloitus_bensa
 
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
-    print(f"Pelaajan kenttä: {pelaaja_kentta_nimi} ({pelaaja_ident})\n")
+    print(f"\nOlet kentällä: {pelaaja_kentta_nimi} ({pelaaja_ident})")
+    print(f"Polttoainetta jäljellä: {bensa:.0f}\n")
 
     # Hae kentät paitsi nykyinen
     cursor.execute("""
@@ -129,39 +126,43 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
 
     kentta_etaisyydet.sort(key=lambda x: x[2])
 
-    print("Kolme vaihtoehtoista lentokenttää:")
+    print("Kolme vaihtoehtoista lentokenttää (1 km = 1 litra):")
     for i, kentta in enumerate(kentta_etaisyydet):
-        print(f"{i+1}. {kentta[1]} ({kentta[0]}) - {kentta[2]:.1f} km")
+        tyyppi = " (Lähin +3000)" if i == 0 else ""
+        print(f"{i+1}. {kentta[1]} ({kentta[0]}) - {kentta[2]:.1f} km{tyyppi}")
 
-    valinta = int(input("\nValitse kenttä (1-3): "))
+    while True:
+        try:
+            valinta = int(input("\nValitse kenttä (1-3): "))
+            if 1 <= valinta <= 3:
+                break
+            else:
+                print("Valitse numero 1-3.")
+        except ValueError:
+            print("Anna numero 1-3.")
+
     valittu = kentta_etaisyydet[valinta-1]
+    matka = int(valittu[2])
+
+    print(f"\nLennät kentälle {valittu[1]} ({valittu[0]}) - {matka} km")
+
+    bensa -= matka
 
     if valittu == kentta_etaisyydet[0]:
-        print("Turvallinen valinta! Saat lisää polttoainetta (+200).")
-    elif valittu == kentta_etaisyydet[1]:
-        print("Ihan OK valinta. Kulutit paljon polttoainetta.")
-    else:
-        print("Valitsit pitkän matkan.")
-        
-    kulutus = int(valittu[2])/2
-    bensa -= kulutus
+        print("Turvallinen valinta! Saat +3000 polttoainetta.")
+        bensa += 3000
+
 
     if bensa <= 0:
-        print("Bensa loppui kesken!")
+        print("\nPolttoaine loppui!")
         print("Peli päättyi. Kiitos pelaamisesta!")
-        global peliKaynnissa
         peliKaynnissa = False
     else:
-        print("Selvisit matkan!")
-        print("Kulutit: ", kulutus, " bensaa.")
-        if valittu == kentta_etaisyydet[0]:
-            bensa += int(valittu[2])/2*1.2
-        elif valittu == kentta_etaisyydet[1]:
-            bensa += int(valittu[2])/2*0.9
-        else:
-            bensa += int(valittu[2])/2*0.6
-        
-    print(f"\nTilanne: Polttoainetta jäljellä {bensa} yksikköä.")
+        print(f"Matka kulutti {matka} litraa polttoainetta.")
+        print(f"Polttoainetta jäljellä: {bensa:.0f} litraa.\n")
+
+    return (valittu[0], valittu[1], valittu[3]), bensa
+
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -174,9 +175,8 @@ if __name__ == "__main__":
     # Käynnistetään alku ja peli
     nimi, kentta, aloitus_bensa = alku()
 
-# Peli käynnissä
-while peliKaynnissa: 
-    pelaa_peli(nimi, kentta, aloitus_bensa)
+while peliKaynnissa:
+    kentta, aloitus_bensa = pelaa_peli(nimi, kentta, aloitus_bensa)
 
 # Lopuksi nämä voi sulkea (ei tarvitse koko ajan avata ja sulkea)
 cursor.close()
