@@ -9,8 +9,8 @@ def get_connection():
         host='127.0.0.1',
         port=3306,
         database='fuel_to_fly',
-        user='aaro',
-        password='2005',
+        user='Dornaraj',
+        password='123',
         autocommit=True
     )
     return yhteys
@@ -40,7 +40,6 @@ def alku():
     # 3. Polttoaine alussa
     bensa = 10000
 
-    # Tulostetaan tiedot
     print("\n--- PELIN ALKU ---")
     print(f"Tervetuloa peliin {nimi}!")
     print(f"Aloitat kentältä: {pelaaja_nimi} ({pelaaja_ident})")
@@ -49,20 +48,18 @@ def alku():
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
 
-#######
-
 # Globaali polttoaine
 bensa = 0
 maa = "Ei maata"
 maanosa = "Ei maanosaa"
 peliKaynnissa = True
+kayty_kentat = []  # <-- lisätty lista käydyille kentille
 
 komennot = [
     (["apua", "h", "a", "komennot"], "apua", "Nämä komennot"),
     (["ohje", "ohjeet", "o"], "ohje", "Pelin ohjeet"),
     (["tilanne", "t"], "tilanne", "Pelin tilanne")
 ]
-
 def Tilanne():
     global bensa, maa, maanosa
     print("----Tilanteesi----")
@@ -102,21 +99,35 @@ def Puhe():
 
 # --- VARSINAINEN PELI ---
 def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
-    global bensa, peliKaynnissa
+    global bensa, peliKaynnissa, kayty_kentat
     bensa = aloitus_bensa
 
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
+
+    # Lisää nykyinen kenttä käytyjen listaan (jos ei jo siellä)
+    if pelaaja_ident not in kayty_kentat:
+        kayty_kentat.append(pelaaja_ident)
+
     print(f"\nOlet kentällä: {pelaaja_kentta_nimi} ({pelaaja_ident})")
     print(f"Polttoainetta jäljellä: {bensa:.0f}\n")
 
-    # Hae kentät paitsi nykyinen
+    # Hae kentät paitsi nykyinen ja jo käydyt
     cursor.execute("""
         SELECT ident, name, latitude_deg, longitude_deg 
         FROM airport 
-        WHERE ident != %s
-    """, (pelaaja_ident,))
+        WHERE latitude_deg IS NOT NULL AND longitude_deg IS NOT NULL
+    """)
     kaikki_kentat = cursor.fetchall()
-    kolme_kenttaa = random.sample(kaikki_kentat, 3)
+
+    # Suodatetaan käydyt kentät pois
+    kaymattomat = [k for k in kaikki_kentat if k[0] not in kayty_kentat]
+
+    if len(kaymattomat) < 3:
+        print("\nOlet käynyt lähes kaikilla kentillä! Peli päättyy.")
+        peliKaynnissa = False
+        return pelaaja_kentta, bensa
+
+    kolme_kenttaa = random.sample(kaymattomat, 3)
 
     kentta_etaisyydet = []
     for ident, name, lat, lon in kolme_kenttaa:
@@ -152,10 +163,10 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
         print("Turvallinen valinta! Saat +3000 polttoainetta.")
         bensa += 3000
 
-
     if bensa <= 0:
         print("\nPolttoaine loppui!")
         print("Peli päättyi. Kiitos pelaamisesta!")
+        print(f"Olet käynyt {len(kayty_kentat)} kentällä: {', '.join(kayty_kentat)}")
         peliKaynnissa = False
     else:
         print(f"Matka kulutti {matka} litraa polttoainetta.")
@@ -172,12 +183,10 @@ if __name__ == "__main__":
     Puhe()
     print("Peli alkaa!\n")
 
-    # Käynnistetään alku ja peli
     nimi, kentta, aloitus_bensa = alku()
 
-while peliKaynnissa:
-    kentta, aloitus_bensa = pelaa_peli(nimi, kentta, aloitus_bensa)
+    while peliKaynnissa:
+        kentta, aloitus_bensa = pelaa_peli(nimi, kentta, aloitus_bensa)
 
-# Lopuksi nämä voi sulkea (ei tarvitse koko ajan avata ja sulkea)
-cursor.close()
-yhteys.close()
+    cursor.close()
+    yhteys.close()
