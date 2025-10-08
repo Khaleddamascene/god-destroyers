@@ -3,14 +3,13 @@ import random
 import mysql.connector
 from geopy.distance import geodesic
 
-
 def get_connection():
     yhteys = mysql.connector.connect(
         host='127.0.0.1',
         port=3306,
         database='fuel_to_fly',
-        user='Dornaraj',
-        password='123',
+        user='andrei',
+        password='1234',
         autocommit=True
     )
     return yhteys
@@ -48,18 +47,20 @@ def alku():
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
 
-# Globaali polttoaine
+# Globaali polttoaine ja muut pelitiedot
 bensa = 0
 maa = "Ei maata"
 maanosa = "Ei maanosaa"
 peliKaynnissa = True
-kayty_kentat = []  # <-- lisätty lista käydyille kentille
+kayty_kentat = []  # Käydyt kentät
+kokonaismatka = 0  # <-- lisätty: kokonaismatkan laskuri
 
 komennot = [
     (["apua", "h", "a", "komennot"], "apua", "Nämä komennot"),
     (["ohje", "ohjeet", "o"], "ohje", "Pelin ohjeet"),
     (["tilanne", "t"], "tilanne", "Pelin tilanne")
 ]
+
 def Tilanne():
     global bensa, maa, maanosa
     print("----Tilanteesi----")
@@ -97,9 +98,10 @@ def Puhe():
         if not HaeKomento(puhe):
             return puhe
 
+
 # --- VARSINAINEN PELI ---
 def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
-    global bensa, peliKaynnissa, kayty_kentat
+    global bensa, peliKaynnissa, kayty_kentat, kokonaismatka
     bensa = aloitus_bensa
 
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
@@ -155,6 +157,9 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
     valittu = kentta_etaisyydet[valinta-1]
     matka = int(valittu[2])
 
+    # Päivitetään kokonaismatka
+    kokonaismatka += matka
+
     print(f"\nLennät kentälle {valittu[1]} ({valittu[0]}) - {matka} km")
 
     bensa -= matka
@@ -166,7 +171,7 @@ def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
     if bensa <= 0:
         print("\nPolttoaine loppui!")
         print("Peli päättyi. Kiitos pelaamisesta!")
-        print(f"Olet käynyt {len(kayty_kentat)} kentällä: {', '.join(kayty_kentat)}")
+        print("")
         peliKaynnissa = False
     else:
         print(f"Matka kulutti {matka} litraa polttoainetta.")
@@ -187,6 +192,39 @@ if __name__ == "__main__":
 
     while peliKaynnissa:
         kentta, aloitus_bensa = pelaa_peli(nimi, kentta, aloitus_bensa)
+
+# Tässä kohtaa peli päättyy, ja muuttuja 'kokonaismatka' sisältää kokonaismatkan
+nickname = nimi
+visited_count = len(kayty_kentat)
+total_distance = kokonaismatka
+
+
+# Tallennetaan tulos tietokantaan
+sql = "INSERT INTO results (player_name, visited_count, total_distance) VALUES (%s, %s, %s)"
+values = (nickname, visited_count, total_distance)
+cursor.execute(sql, values)
+
+print(f"Sinä {nickname} vieraili {visited_count} kentässä ja lensi yhteensä {total_distance:.2f} km")
+
+# Haetaan paras tulos
+cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY visited_count DESC LIMIT 1")
+best_by_airports = cursor.fetchone()
+
+if best_by_airports[0] == nickname:
+    print("! Congratulations New Record! Vierailin eniteen lentokentiä")
+    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
+else: 
+    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
+
+# Haetaan paras matkan pituuden mukaan
+cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY total_distance DESC LIMIT 1")
+best_by_distance = cursor.fetchone()
+
+if best_by_distance[0] == nickname:
+    print("! Congratulations New Record! Matkistit isoin matkaa")
+    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
+else:
+    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
 
     cursor.close()
     yhteys.close()

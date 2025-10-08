@@ -68,5 +68,45 @@ for i in range(10000000):
         print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
 
 
+    
+
+
+
+'''
+# Loppuosa mikä näytä tyuloksen ja tallena se tietokantaan
+nickname = nimi
+visited_count = lentokentia_vierailtu
+total_distance = matka_matkustettu
+
+# Tallennetaan tulos tietokantaan
+sql = "INSERT INTO results (player_name, visited_count, total_distance) VALUES (%s, %s, %s)"
+values = (nickname, visited_count, total_distance)
+cursor.execute(sql, values)
+
+print(f"Sinä {nickname} vieraili {visited_count} kentässä ja lensi yhteensä {total_distance:.2f} km")
+
+# Haetaan paras tulos
+cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY visited_count DESC LIMIT 1")
+best_by_airports = cursor.fetchone()
+
+if best_by_airports[0] == nickname:
+    print("! Congratulations New Record! Vierailin eniteen lentokentiä")
+    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
+else: 
+    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
+
+# Haetaan paras matkan pituuden mukaan
+cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY total_distance DESC LIMIT 1")
+best_by_distance = cursor.fetchone()
+
+if best_by_distance[0] == nickname:
+    print("! Congratulations New Record! Matkistit isoin matkaa")
+    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
+else:
+    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
+
+'''
+
+
 
 
