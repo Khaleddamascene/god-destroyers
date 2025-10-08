@@ -1,100 +1,92 @@
-# --- DATABASE ---
-import random
-
 import mysql.connector
+import random
 from geopy.distance import geodesic
 
-
+# --- TIETOKANTAYHTEYS ---
 def get_connection():
-    yhteys = mysql.connector.connect(
-        host='127.0.0.1',
-        port=3306,
-        database='fuel_to_fly',
-        user='elmo',
-        password='kikkeli123',
-        autocommit=True
-    )
-    return yhteys
+    try:
+        yhteys = mysql.connector.connect(
+            host='127.0.0.1',
+            port=3307,
+            database='fuel_to_fly',
+            user='khaled',
+            password='1234',
+            autocommit=True
+        )
+        return yhteys
+    except mysql.connector.Error as err:
+        print(f"Virhe tietokantayhteydessä: {err}")
+        return None
 
-yhteys = get_connection()
-cursor = yhteys.cursor()
 
-#####  """Khaled"""
+komennot = [
+    (["apua", "h", "a", "komennot"], "apua", "Näytä kaikki komennot"),
+    (["ohje", "ohjeet", "o"], "ohje", "Näytä pelin ohjeet")
+]
+
+
+# --- PELIN ALKU ---
 def alku():
-    # 1. Kysy pelaajan nimi (pakollinen)
-    while True:
-        nimi = input("Syötä pelaajan nimi: ").strip()
-        if nimi != "":
-            break
-        print("Nimi ei voi olla tyhjä. Yritä uudelleen.")
+    global kaikki_kentat, bensa
+    yhteys = get_connection()
+    if yhteys is None:
+        print("Tietokantayhteyttä ei voitu muodostaa. Peli ei voi jatkua.")
+        exit()
 
-    # 2. Satunnainen lähtökenttä
+    cursor = yhteys.cursor()
+
+    # Haetaan kaikki kentät vain kerran
     cursor.execute("""
         SELECT ident, name, latitude_deg, longitude_deg 
         FROM airport 
         WHERE latitude_deg IS NOT NULL AND longitude_deg IS NOT NULL
     """)
     kaikki_kentat = cursor.fetchall()
+
+    # Kysy pelaajan nimi
+    while True:
+        nimi = input("Syötä pelaajan nimi: ").strip()
+        if nimi != "":
+            break
+        print("Nimi ei voi olla tyhjä. Yritä uudelleen.")
+
+    # Satunnainen aloituskenttä
     aloitus = random.choice(kaikki_kentat)
     pelaaja_ident, pelaaja_nimi, lat, lon = aloitus
 
-    # 3. Polttoaine alussa
-    bensa = 10000
-
-    # Tulostetaan tiedot
+    bensa = 1000
     print("\n--- PELIN ALKU ---")
-    print(f"Tervetuloa peliin {nimi}!")
+    print(f"Tervetuloa peliin, {nimi}!")
     print(f"Aloitat kentältä: {pelaaja_nimi} ({pelaaja_ident})")
     print(f"Polttoainetta käytössäsi: {bensa} yksikköä\n")
+
+    cursor.close()
+    yhteys.close()
 
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
 
-#######
-
-# Globaali polttoaine
-bensa = 0
-maa = "Ei maata"
-maanosa = "Ei maanosaa"
-peliKaynnissa = True
-
-komennot = [
-    (["apua", "h", "a", "komennot"], "apua", "Nämä komennot"),
-    (["ohje", "ohjeet", "o"], "ohje", "Pelin ohjeet"),
-    (["tilanne", "t"], "tilanne", "Pelin tilanne")
-]
-
-def Tilanne():
-    global bensa, maa, maanosa
-    print("----Tilanteesi----")
-    print("Bensaa:", bensa)
-    print("Maa:", maa)
-    print("Maanosa:", maanosa)
-
 def Ohjeet():
-    print("Ohjeet:")
-    print("Sinulle annetaan vaihtoehtoja eri lentokenttiin.")
-    print("Sinun täytyy valita kenttä, johon sinulla riittää bensaa.")
-    print("Jos kenttä on liian kaukana niin häviät.")
-    print("Oikeasta vastauksesta matkustat sille kentälle.")
-    print("Kentällä saat lisää bensaa ja uuden valinnan.")
-    print("Yritä päästä mahdollisimman pitkälle")
-    print("Kirjoita 'apua', niin saat apua.")
-    print("Onnea!")
-    input("Jep!")
+    print("\nOhjeet:")
+    print("Sinulle annetaan kolme vaihtoehtoa eri lentokenttiin:")
+    print("- Lähin kenttä (turvallisin, saa lisää bensaa)")
+    print("- Keskikenttä (tasapainoinen vaihtoehto)")
+    print("- Kaukaisin kenttä (suurin riski, kuluttaa paljon polttoainetta)")
+    print("Jos polttoaine loppuu kesken, peli päättyy.")
+    print("Kirjoita 'apua', niin näet kaikki komennot.\n")
+    input("Paina ENTER jatkaaksesi...")
+
 
 def HaeKomento(komento):
-    komento = str(komento).lower().strip()
+    komento = komento.lower().strip()
     for avainsanat, toiminto, kuvaus in komennot:
         if komento in avainsanat:
             if toiminto == "apua":
-                print("Komennot:")
+                print("\nKomennot:")
                 for av, _, kuvaus in komennot:
                     print(f"'{av[0]}' : {kuvaus}")
             elif toiminto == "ohje":
                 Ohjeet()
-            elif toiminto == "tilanne":
-                Tilanne()
             return True
     return False
 
@@ -104,80 +96,101 @@ def Puhe():
         if not HaeKomento(puhe):
             return puhe
 
-# --- VARSINAINEN PELI ---
-def pelaa_peli(pelaaja_nimi, pelaaja_kentta, aloitus_bensa):
-    global bensa
-    bensa = aloitus_bensa
-
+# --- PELIN PÄÄOSA ---
+def pelaa_peli(pelaaja_kentta):
+    global bensa, kaikki_kentat
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
-    print(f"Pelaajan kenttä: {pelaaja_kentta_nimi} ({pelaaja_ident})\n")
 
-    # Hae kentät paitsi nykyinen
-    cursor.execute("""
-        SELECT ident, name, latitude_deg, longitude_deg 
-        FROM airport 
-        WHERE ident != %s
-    """, (pelaaja_ident,))
-    kaikki_kentat = cursor.fetchall()
-    kolme_kenttaa = random.sample(kaikki_kentat, 3)
+    print(f"\nNykyinen kenttä: {pelaaja_kentta_nimi} ({pelaaja_ident})\n")
 
+    # Lasketaan etäisyydet kaikille muille kentille (muistista)
     kentta_etaisyydet = []
-    for ident, name, lat, lon in kolme_kenttaa:
-        kentta_sijainti = (lat, lon)
-        matka = geodesic(pelaaja_sijainti, kentta_sijainti).km
-        kentta_etaisyydet.append((ident, name, matka, kentta_sijainti))
+    for ident, name, lat, lon in kaikki_kentat:
+        if ident == pelaaja_ident:
+            continue
+        matka = geodesic(pelaaja_sijainti, (lat, lon)).km
+        kentta_etaisyydet.append((ident, name, matka, (lat, lon)))
 
+    # Järjestetään etäisyyden mukaan
     kentta_etaisyydet.sort(key=lambda x: x[2])
 
-    print("Kolme vaihtoehtoista lentokenttää:")
-    for i, kentta in enumerate(kentta_etaisyydet):
-        print(f"{i+1}. {kentta[1]} ({kentta[0]}) - {kentta[2]:.1f} km")
-
-    valinta = int(input("\nValitse kenttä (1-3): "))
-    valittu = kentta_etaisyydet[valinta-1]
-
-    if valittu == kentta_etaisyydet[0]:
-        print("Turvallinen valinta! Saat lisää polttoainetta (+200).")
-    elif valittu == kentta_etaisyydet[1]:
-        print("Ihan OK valinta. Kulutit paljon polttoainetta.")
+    # Valitaan lähin, keskimmäinen ja kaukaisin
+    if len(kentta_etaisyydet) >= 3:
+        lahin = kentta_etaisyydet[0]
+        keskimmainen = kentta_etaisyydet[len(kentta_etaisyydet)//2]
+        kaukaisin = kentta_etaisyydet[-1]
+        vaihtoehdot = [lahin, keskimmainen, kaukaisin]
     else:
-        print("Valitsit pitkän matkan.")
-        
-    kulutus = int(valittu[2])/2
+        vaihtoehdot = kentta_etaisyydet
+
+    random.shuffle(vaihtoehdot)
+
+    print("Vaihtoehtoiset lentokentät:")
+    for i, (ident, name, _, _) in enumerate(vaihtoehdot, start=1):
+        print(f"{i}. {name:40} ({ident})")  # ei näytetä etäisyyksiä
+
+    # Käyttäjän valinta
+    while True:
+        s = input("\nValitse kenttä (1-{}): ".format(len(vaihtoehdot))).strip()
+        if s == "":
+            print("Anna valinta 1-{} tai komento (esim. 'apua').".format(len(vaihtoehdot)))
+            continue
+        if HaeKomento(s):
+            continue
+        try:
+            valinta = int(s)
+            if 1 <= valinta <= len(vaihtoehdot):
+                break
+            else:
+                print(f"Valitse numero 1–{len(vaihtoehdot)}.")
+        except ValueError:
+            print("Anna numero tai kirjoita 'apua' nähdäksesi komennot.")
+
+    valittu = vaihtoehdot[valinta - 1]
+    matka = valittu[2]
+
+    # Tarkistetaan riittääkö bensa
+    if bensa < matka:
+        print(f"Polttoaine ei riitä lennolle ({matka:.1f} km). Peli päättyy.")
+        bensa = 0
+        return pelaaja_kentta
+
+    # Lentomatkan kulutus
+    kulutus = int(matka)
     bensa -= kulutus
 
-    if bensa <= 0:
-        print("Bensa loppui kesken!")
-        print("Peli päättyi. Kiitos pelaamisesta!")
-        global peliKaynnissa
-        peliKaynnissa = False
+    # Polttoaineen lisäys / viesti
+    if valittu == vaihtoehdot[0]:
+        print("Turvallinen valinta! Saat lisää polttoainetta (+200).")
+        bensa += 200
+    elif len(vaihtoehdot) >= 2 and valittu == vaihtoehdot[1]:
+        print("Hyvä valinta! Keskipitkä lento onnistui.")
     else:
-        print("Selvisit matkan!")
-        print("Kulutit: ", kulutus, " bensaa.")
-        if valittu == kentta_etaisyydet[0]:
-            bensa += int(valittu[2])/2*1.2
-        elif valittu == kentta_etaisyydet[1]:
-            bensa += int(valittu[2])/2*0.9
-        else:
-            bensa += int(valittu[2])/2*0.6
-        
-    print(f"\nTilanne: Polttoainetta jäljellä {bensa} yksikköä.")
+        print("Kaukaisin kenttä! Lento onnistui, mutta kulutit paljon polttoainetta.")
+
+    print(f"Lensit {matka:.1f} km (kulutus {kulutus}). Polttoainetta jäljellä {bensa}.\n")
+
+    # Päivitetään uusi sijainti
+    uusi_kentta = (valittu[0], valittu[1], valittu[3])
+    return uusi_kentta
+
 
 # --- MAIN ---
 if __name__ == "__main__":
-    print("Fuel to Fly\n")
-    input("Press ENTER to start!\n")
-    print("Kirjoita 'ohje', niin saat pelin ohjeet.\n")
+    print("=== Fuel to Fly ===\n")
+    input("Paina ENTER aloittaaksesi!\n")
+    print("Kirjoita 'ohje', jos haluat pelin ohjeet.\n")
+
     Puhe()
-    print("Peli alkaa!\n")
+    print("\nPeli alkaa!\n")
 
-    # Käynnistetään alku ja peli
     nimi, kentta, aloitus_bensa = alku()
+    bensa = aloitus_bensa
 
-# Peli käynnissä
-while peliKaynnissa: 
-    pelaa_peli(nimi, kentta, aloitus_bensa)
-
-# Lopuksi nämä voi sulkea (ei tarvitse koko ajan avata ja sulkea)
-cursor.close()
-yhteys.close()
+    # Pääsilmukka
+    while True:
+        kentta = pelaa_peli(kentta)
+        if bensa <= 0:
+            print("\nPolttoaine loppui. Peli päättyi.")
+            print(f"Kiitos pelaamisesta, {nimi}!\n")
+            break
