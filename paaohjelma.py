@@ -2,25 +2,25 @@ import mysql.connector
 import random
 from geopy.distance import geodesic
 
+# --- Tietokantayhteys ---
 def get_connection():
     yhteys = mysql.connector.connect(
         host='127.0.0.1',
-        port=3306,
+        port=3307,
         database='fuel_to_fly',
-        user='andrei',
+        user='khaled',
         password='1234',
         autocommit=True
     )
     return yhteys
 
-
+# --- Komennot ---
 komennot = [
     (["apua", "h", "a", "komennot"], "apua", "Näytä kaikki komennot"),
     (["ohje", "ohjeet", "o"], "ohje", "Näytä pelin ohjeet")
 ]
 
-
-# --- PELIN ALKU ---
+# --- Pelin alku ---
 def alku():
     global kaikki_kentat, bensa
     yhteys = get_connection()
@@ -30,7 +30,7 @@ def alku():
 
     cursor = yhteys.cursor()
 
-    # Haetaan kaikki kentät vain kerran
+    # Haetaan kaikki lentokentät
     cursor.execute("""
         SELECT ident, name, latitude_deg, longitude_deg 
         FROM airport 
@@ -60,6 +60,7 @@ def alku():
 
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
 
+# --- Ohjeet ---
 def Ohjeet():
     print("\nOhjeet:")
     print("Sinulle annetaan kolme vaihtoehtoa eri lentokenttiin:")
@@ -70,7 +71,7 @@ def Ohjeet():
     print("Kirjoita 'apua', niin näet kaikki komennot.\n")
     input("Paina ENTER jatkaaksesi...")
 
-
+# --- Komentojen käsittely ---
 def HaeKomento(komento):
     komento = komento.lower().strip()
     for avainsanat, toiminto, kuvaus in komennot:
@@ -90,14 +91,14 @@ def Puhe():
         if not HaeKomento(puhe):
             return puhe
 
-# --- PELIN PÄÄOSA ---
+# --- Pelin pääosa ---
 def pelaa_peli(pelaaja_kentta):
     global bensa, kaikki_kentat
     pelaaja_ident, pelaaja_kentta_nimi, pelaaja_sijainti = pelaaja_kentta
 
     print(f"\nNykyinen kenttä: {pelaaja_kentta_nimi} ({pelaaja_ident})\n")
 
-    # Lasketaan etäisyydet kaikille muille kentille (muistista)
+    # Lasketaan etäisyydet kaikille muille kentille
     kentta_etaisyydet = []
     for ident, name, lat, lon in kaikki_kentat:
         if ident == pelaaja_ident:
@@ -147,7 +148,7 @@ def pelaa_peli(pelaaja_kentta):
     if bensa < matka:
         print(f"Polttoaine ei riitä lennolle ({matka:.1f} km). Peli päättyy.")
         bensa = 0
-        return pelaaja_kentta
+        return pelaaja_kentta, matka
 
     # Lentomatkan kulutus
     kulutus = int(matka)
@@ -166,8 +167,7 @@ def pelaa_peli(pelaaja_kentta):
 
     # Päivitetään uusi sijainti
     uusi_kentta = (valittu[0], valittu[1], valittu[3])
-    return uusi_kentta
-
+    return uusi_kentta, matka
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -175,44 +175,52 @@ if __name__ == "__main__":
     input("Paina ENTER aloittaaksesi!\n")
     print("Kirjoita 'ohje', jos haluat pelin ohjeet.\n")
 
+    # Näytetään ohjeet, jos pelaaja haluaa
     Puhe()
-    print("\nPeli alkaa!\n")
 
+    # Pelin aloitus
     nimi, kentta, aloitus_bensa = alku()
     bensa = aloitus_bensa
 
-# Tässä kohtaa peli päättyy, ja muuttuja 'kokonaismatka' sisältää kokonaismatkan
-nickname = nimi
-visited_count = len(kayty_kentat)
-total_distance = kokonaismatka
+    # Seurataan käytyjä kenttiä ja kokonaismatkaa
+    kayty_kentat = [kentta]
+    kokonaismatka = 0
 
+    # Pääpelisilmukka
+    while bensa > 0:
+        kentta, matka = pelaa_peli(kentta)
+        if kentta not in kayty_kentat:
+            kokonaismatka += matka
+            kayty_kentat.append(kentta)
 
-# Tallennetaan tulos tietokantaan
-sql = "INSERT INTO results (player_name, visited_count, total_distance) VALUES (%s, %s, %s)"
-values = (nickname, visited_count, total_distance)
-cursor.execute(sql, values)
+    # Tallennetaan tulokset tietokantaan
+    yhteys = get_connection()
+    cursor = yhteys.cursor()
 
-print(f"Sinä {nickname} vieraili {visited_count} kentässä ja lensi yhteensä {total_distance:.2f} km")
+    nickname = nimi
+    visited_count = len(kayty_kentat)
+    total_distance = kokonaismatka
 
-# Haetaan paras tulos
-cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY visited_count DESC LIMIT 1")
-best_by_airports = cursor.fetchone()
+    sql = "INSERT INTO results (player_name, visited_count, total_distance) VALUES (%s, %s, %s)"
+    values = (nickname, visited_count, total_distance)
+    cursor.execute(sql, values)
+    yhteys.commit()
 
-if best_by_airports[0] == nickname:
-    print("! Congratulations New Record! Vierailin eniteen lentokentiä")
-    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
-else: 
-    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km")
+    print(f"Sinä {nickname} vierailit {visited_count} kentässä ja lensit yhteensä {total_distance:.2f} km\n")
 
-# Haetaan paras matkan pituuden mukaan
-cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY total_distance DESC LIMIT 1")
-best_by_distance = cursor.fetchone()
+    # Paras tulos kenttien mukaan
+    cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY visited_count DESC, total_distance DESC LIMIT 1")
+    best_by_airports = cursor.fetchone()
+    if best_by_airports[0] == nickname:
+        print("! Congratulations New Record! Vierailit eniten lentokenttiä")
+    print(f"Eniten kenttiä: {best_by_airports[0]} vieraili {best_by_airports[1]} kentässä ja lensi {best_by_airports[2]:.2f} km\n")
 
-if best_by_distance[0] == nickname:
-    print("! Congratulations New Record! Matkistit isoin matkaa")
-    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
-else:
-    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km")
+    # Paras matkan pituuden mukaan
+    cursor.execute("SELECT player_name, visited_count, total_distance FROM results ORDER BY total_distance DESC, visited_count DESC LIMIT 1")
+    best_by_distance = cursor.fetchone()
+    if best_by_distance[0] == nickname:
+        print("! Congratulations New Record! Lensit pisimmän matkan")
+    print(f"Isoin matka: {best_by_distance[0]} vieraili {best_by_distance[1]} kentässä ja lensi {best_by_distance[2]:.2f} km\n")
 
     cursor.close()
     yhteys.close()
