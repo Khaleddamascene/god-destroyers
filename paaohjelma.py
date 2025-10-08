@@ -1,5 +1,3 @@
-from turtledemo.sorting_animate import start_ssort
-
 import mysql.connector
 import random
 from geopy.distance import geodesic
