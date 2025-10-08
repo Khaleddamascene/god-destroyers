@@ -1,3 +1,5 @@
+from turtledemo.sorting_animate import start_ssort
+
 import mysql.connector
 import random
 from geopy.distance import geodesic
@@ -64,7 +66,6 @@ def alku():
     yhteys.close()
 
     return nimi, (pelaaja_ident, pelaaja_nimi, (lat, lon)), bensa
-
 
 def Ohjeet():
     print("\nOhjeet:")
